@@ -1,65 +1,284 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 export default function Home() {
-  return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+  const salarioDia15 = 3000;
+  const salarioDia30 = 2800;
+
+  const [descricao, setDescricao] = useState("");
+  const [valor, setValor] = useState("");
+  const [categoria, setCategoria] = useState("");
+  const [tipo, setTipo] = useState("fixa");
+  const [periodo, setPeriodo] = useState("15");
+
+  const [gastos, setGastos] = useState<any[]>([]);
+
+  useEffect(() => {
+    buscarGastos();
+  }, []);
+
+  async function buscarGastos() {
+
+    const { data, error } = await supabase
+      .from("gastos")
+      .select("*");
+
+    if (error) {
+      console.error("Erro ao buscar gastos:", error);
+      return;
+    }
+
+    console.log("Gastos carregados:", data);
+
+    setGastos(data);
+  }
+
+
+    async function adicionarGasto() {
+      if (!descricao || !valor || !categoria) return;
+
+      const novoGasto = {
+        descricao,
+        valor: Number(valor),
+        categoria,
+        tipo,
+        periodo,
+      };
+
+      const { data, error } = await supabase
+        .from("gastos")
+        .insert([novoGasto])
+        .select()
+        .single();
+
+      if (error) {
+        console.log("Erro Supabase:", error);
+        alert("Erro ao salvar no Supabase. Veja o console.");
+        return;
+      }
+
+      setGastos([...gastos, data]);
+
+      setDescricao("");
+      setValor("");
+      setCategoria("");
+      setTipo("fixa");
+      setPeriodo("15");
+    }
+
+    const gastosDia15 = gastos.filter((gasto) => gasto.periodo === "15");
+    const gastosDia30 = gastos.filter((gasto) => gasto.periodo === "30");
+
+    const totalGastos15 = gastosDia15.reduce(
+      (total, gasto) => total + gasto.valor,
+      0
+    );
+
+    const totalGastos30 = gastosDia30.reduce(
+      (total, gasto) => total + gasto.valor,
+      0
+    );
+
+    const saldo15 = salarioDia15 - totalGastos15;
+
+    const saldo30 = salarioDia30 - totalGastos30;
+
+    function excluirGasto(idParaExcluir: number) {
+
+      const novaLista = gastos.filter(
+        (gasto) => gasto.id !== idParaExcluir
+      );
+
+      setGastos(novaLista);
+    }
+
+
+    return (
+      <main className="min-h-screen bg-zinc-900 text-white p-6">
+        <h1 className="text-4xl font-bold mb-8">
+          Controle Financeiro
+        </h1>
+
+        <div className="grid gap-4 md:grid-cols-2 mb-8">
+          <div className="bg-zinc-800 p-6 rounded-2xl shadow-lg">
+            <h2 className="text-2xl font-semibold mb-4">💰 Dia 15</h2>
+            <p>Recebido: R$ {salarioDia15}</p>
+            <p>Total de Gastos: R$ {totalGastos15}</p>
+
+            <hr className="border-zinc-600 my-4" />
+
+            <p className="text-xl font-bold text-green-400">
+              Saldo: R$ {saldo15}
+            </p>
+          </div>
+
+          <div className="bg-zinc-800 p-6 rounded-2xl shadow-lg">
+            <h2 className="text-2xl font-semibold mb-4">💰 Dia 30</h2>
+            <p>Recebido: R$ {salarioDia30}</p>
+            <p>Total de Gastos: R$ {totalGastos30}</p>
+
+            <hr className="border-zinc-600 my-4" />
+
+            <p className="text-xl font-bold text-green-400">
+              Saldo: R$ {saldo30}
+            </p>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+
+        <div className="bg-zinc-800 p-6 rounded-2xl shadow-lg max-w-3xl mb-8">
+          <h2 className="text-2xl font-semibold mb-4">
+            Novo gasto
+          </h2>
+
+          <div className="grid gap-2 md:grid-cols-2 mb-4">
+            <input
+              type="text"
+              placeholder="Descrição"
+              value={descricao}
+              onChange={(e) => setDescricao(e.target.value)}
+              className="bg-zinc-700 p-2 rounded-lg text-white"
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+
+            <input
+              type="number"
+              placeholder="Valor"
+              value={valor}
+              onChange={(e) => setValor(e.target.value)}
+              className="bg-zinc-700 p-2 rounded-lg text-white"
+            />
+
+            <input
+              type="text"
+              placeholder="Categoria"
+              value={categoria}
+              onChange={(e) => setCategoria(e.target.value)}
+              className="bg-zinc-700 p-2 rounded-lg text-white"
+            />
+
+            <select
+              value={tipo}
+              onChange={(e) => setTipo(e.target.value)}
+              className="bg-zinc-700 p-2 rounded-lg text-white"
+            >
+              <option value="fixa">Fixa</option>
+              <option value="variavel">Variável/Pontual</option>
+            </select>
+
+            <select
+              value={periodo}
+              onChange={(e) => setPeriodo(e.target.value)}
+              className="bg-zinc-700 p-2 rounded-lg text-white md:col-span-2"
+            >
+              <option value="15">Descontar do dia 15</option>
+              <option value="30">Descontar do dia 30</option>
+            </select>
+          </div>
+
+          <button
+            onClick={adicionarGasto}
+            className="bg-green-500 hover:bg-green-600 px-4 py-2 rounded-lg font-bold"
           >
-            Documentation
-          </a>
+            Adicionar Gasto
+          </button>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="bg-zinc-800 p-6 rounded-2xl">
+            <h2 className="text-xl font-bold mb-4">Gastos do dia 15</h2>
+
+            <div className="space-y-3">
+              {gastosDia15.map((gasto, index) => (
+                <div key={gasto.id} className="bg-zinc-700 p-4 rounded-xl">
+                  <div className="flex justify-between items-center mb-2">
+
+                    <div>
+                      <h3 className="font-bold">
+                        {gasto.descricao}
+                      </h3>
+
+                      <span>
+                        R$ {gasto.valor}
+                      </span>
+                    </div>
+
+                    <button
+                      onClick={() => excluirGasto(gasto.id)}
+                      className="bg-red-500 hover:bg-red-600 px-3 py-1 rounded-lg text-sm font-bold"
+                    >
+                      Excluir
+                    </button>
+
+                  </div>
+
+                  <div className="flex gap-2">
+                    <span className="bg-blue-500 px-2 py-1 rounded text-sm">
+                      {gasto.categoria}
+                    </span>
+
+                    <span
+                      className={
+                        gasto.tipo === "fixa"
+                          ? "bg-red-500 px-2 py-1 rounded text-sm"
+                          : "bg-yellow-500 px-2 py-1 rounded text-sm"
+                      }
+                    >
+                      {gasto.tipo}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-zinc-800 p-6 rounded-2xl">
+            <h2 className="text-xl font-bold mb-4">Gastos do dia 30</h2>
+
+            <div className="space-y-3">
+              {gastosDia30.map((gasto, index) => (
+                <div key={gasto.id} className="bg-zinc-700 p-4 rounded-xl">
+                  <div className="flex justify-between items-center mb-2">
+
+                    <div>
+                      <h3 className="font-bold">
+                        {gasto.descricao}
+                      </h3>
+
+                      <span>
+                        R$ {gasto.valor}
+                      </span>
+                    </div>
+
+                    <button
+                      onClick={() => excluirGasto(gasto.id)}
+                      className="bg-red-500 hover:bg-red-600 px-3 py-1 rounded-lg text-sm font-bold"
+                    >
+                      Excluir
+                    </button>
+
+                  </div>
+
+                  <div className="flex gap-2">
+                    <span className="bg-blue-500 px-2 py-1 rounded text-sm">
+                      {gasto.categoria}
+                    </span>
+
+                    <span
+                      className={
+                        gasto.tipo === "fixa"
+                          ? "bg-red-500 px-2 py-1 rounded text-sm"
+                          : "bg-yellow-500 px-2 py-1 rounded text-sm"
+                      }
+                    >
+                      {gasto.tipo}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </main>
-    </div>
-  );
-}
+    );
+  }
