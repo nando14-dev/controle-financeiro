@@ -15,10 +15,14 @@ export default function Home() {
   const [periodo, setPeriodo] = useState("15");
 
   const [gastos, setGastos] = useState<any[]>([]);
-
+  const [carregandoGastos, setCarregandoGastos] = useState(true);
+  const [salvandoGasto, setSalvandoGasto] = useState(false);
+  const [excluindoId, setExcluindoId] = useState<number | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [session, setSession] = useState<Session | null>(null);
+
+  const [gastoEditandoId, setGastoEditandoId] = useState<number | null>(null);
 
   async function login() {
     const { error } = await supabase.auth.signInWithPassword({
@@ -70,6 +74,8 @@ export default function Home() {
   }, []);
 
   async function buscarGastos() {
+    setCarregandoGastos(true);
+
     const { data, error } = await supabase
       .from("gastos")
       .select("*")
@@ -77,14 +83,40 @@ export default function Home() {
 
     if (error) {
       console.error("Erro ao buscar gastos:", error);
+      setCarregandoGastos(false);
       return;
     }
 
     setGastos(data);
+    setCarregandoGastos(false);
+  }
+
+  function editarGasto(gasto: any) {
+    setGastoEditandoId(gasto.id);
+    setDescricao(gasto.descricao);
+    setValor(String(gasto.valor));
+    setCategoria(gasto.categoria);
+    setTipo(gasto.tipo);
+    setPeriodo(gasto.periodo);
+  }
+
+  function limparFormulario() {
+    setGastoEditandoId(null);
+    setDescricao("");
+    setValor("");
+    setCategoria("");
+    setTipo("fixa");
+    setPeriodo("15");
+  }
+
+  function cancelarEdicao() {
+    limparFormulario();
   }
 
   async function adicionarGasto() {
     if (!descricao || !valor || !categoria) return;
+
+    setSalvandoGasto(true);
 
     const {
       data: { user },
@@ -92,6 +124,7 @@ export default function Home() {
 
     if (!user) {
       alert("Usuário não autenticado.");
+      setSalvandoGasto(false);
       return;
     }
 
@@ -113,19 +146,62 @@ export default function Home() {
     if (error) {
       console.log("Erro Supabase:", error);
       alert("Erro ao salvar no Supabase. Veja o console.");
+      setSalvandoGasto(false);
       return;
     }
 
     setGastos([data, ...gastos]);
 
-    setDescricao("");
-    setValor("");
-    setCategoria("");
-    setTipo("fixa");
-    setPeriodo("15");
+    limparFormulario();
+    setSalvandoGasto(false);
+  }
+
+  async function salvarAlteracao() {
+    if (!gastoEditandoId || !descricao || !valor || !categoria) return;
+
+    setSalvandoGasto(true);
+
+    const gastoAtualizado = {
+      descricao,
+      valor: Number(valor),
+      categoria,
+      tipo,
+      periodo,
+    };
+
+    const { data, error } = await supabase
+      .from("gastos")
+      .update(gastoAtualizado)
+      .eq("id", gastoEditandoId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Erro ao atualizar gasto:", error);
+      alert("Erro ao atualizar gasto.");
+      setSalvandoGasto(false);
+      return;
+    }
+
+    setGastos(
+      gastos.map((gasto) =>
+        gasto.id === gastoEditandoId ? data : gasto
+      )
+    );
+
+    limparFormulario();
+    setSalvandoGasto(false);
   }
 
   async function excluirGasto(idParaExcluir: number) {
+    const confirmou = window.confirm(
+      "Tem certeza que deseja excluir este gasto?"
+    );
+
+    if (!confirmou) return;
+
+    setExcluindoId(idParaExcluir);
+
     const { error } = await supabase
       .from("gastos")
       .delete()
@@ -134,11 +210,12 @@ export default function Home() {
     if (error) {
       console.error("Erro ao excluir gasto:", error);
       alert("Erro ao excluir gasto.");
+      setExcluindoId(null);
       return;
     }
 
-    const novaLista = gastos.filter((gasto) => gasto.id !== idParaExcluir);
-    setGastos(novaLista);
+    setGastos(gastos.filter((gasto) => gasto.id !== idParaExcluir));
+    setExcluindoId(null);
   }
 
   async function logout() {
@@ -154,6 +231,7 @@ export default function Home() {
   }
 
   const gastosDia15 = gastos.filter((gasto) => gasto.periodo === "15");
+
   const gastosDia30 = gastos.filter((gasto) => gasto.periodo === "30");
 
   const totalGastos15 = gastosDia15.reduce(
@@ -212,175 +290,350 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-zinc-900 text-white p-6">
-      <h1 className="text-4xl font-bold mb-8">Controle Financeiro</h1>
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top,#1e293b_0%,#09090b_45%,#000000_100%)] text-white px-4 py-8">
+      <div className="mx-auto max-w-6xl">
+        <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="mb-2 text-sm font-medium text-emerald-400">
+              Painel pessoal
+            </p>
 
-      <button
-        onClick={logout}
-        className="bg-zinc-700 hover:bg-zinc-600 px-4 py-2 rounded-lg font-bold mb-6"
-      >
-        Sair
-      </button>
+            <h1 className="text-4xl font-bold tracking-tight">
+              Controle Financeiro
+            </h1>
 
-      <div className="grid gap-4 md:grid-cols-2 mb-8">
-        <div className="bg-zinc-800 p-6 rounded-2xl shadow-lg">
-          <h2 className="text-2xl font-semibold mb-4">💰 Dia 15</h2>
-          <p>Recebido: R$ {salarioDia15}</p>
-          <p>Total de Gastos: R$ {totalGastos15}</p>
+            <p className="mt-2 text-sm text-zinc-400">
+              Organize seus gastos por período e acompanhe seu saldo com clareza.
+            </p>
+          </div>
 
-          <hr className="border-zinc-600 my-4" />
-
-          <p className="text-xl font-bold text-green-400">
-            Saldo: R$ {saldo15}
-          </p>
-        </div>
-
-        <div className="bg-zinc-800 p-6 rounded-2xl shadow-lg">
-          <h2 className="text-2xl font-semibold mb-4">💰 Dia 30</h2>
-          <p>Recebido: R$ {salarioDia30}</p>
-          <p>Total de Gastos: R$ {totalGastos30}</p>
-
-          <hr className="border-zinc-600 my-4" />
-
-          <p className="text-xl font-bold text-green-400">
-            Saldo: R$ {saldo30}
-          </p>
-        </div>
-      </div>
-
-      <div className="bg-zinc-800 p-6 rounded-2xl shadow-lg max-w-3xl mb-8">
-        <h2 className="text-2xl font-semibold mb-4">Novo gasto</h2>
-
-        <div className="grid gap-2 md:grid-cols-2 mb-4">
-          <input
-            type="text"
-            placeholder="Descrição"
-            value={descricao}
-            onChange={(e) => setDescricao(e.target.value)}
-            className="bg-zinc-700 p-2 rounded-lg text-white"
-          />
-
-          <input
-            type="number"
-            placeholder="Valor"
-            value={valor}
-            onChange={(e) => setValor(e.target.value)}
-            className="bg-zinc-700 p-2 rounded-lg text-white"
-          />
-
-          <input
-            type="text"
-            placeholder="Categoria"
-            value={categoria}
-            onChange={(e) => setCategoria(e.target.value)}
-            className="bg-zinc-700 p-2 rounded-lg text-white"
-          />
-
-          <select
-            value={tipo}
-            onChange={(e) => setTipo(e.target.value)}
-            className="bg-zinc-700 p-2 rounded-lg text-white"
+          <button
+            onClick={logout}
+            className="w-fit rounded-xl border border-zinc-700 bg-zinc-900/80 px-5 py-2.5 text-sm font-semibold text-zinc-200 shadow-lg shadow-black/20 transition hover:border-zinc-500 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            <option value="fixa">Fixa</option>
-            <option value="variavel">Variável/Pontual</option>
-          </select>
+            Sair
+          </button>
+        </header>
 
-          <select
-            value={periodo}
-            onChange={(e) => setPeriodo(e.target.value)}
-            className="bg-zinc-700 p-2 rounded-lg text-white md:col-span-2"
-          >
-            <option value="15">Descontar do dia 15</option>
-            <option value="30">Descontar do dia 30</option>
-          </select>
-        </div>
-
-        <button
-          onClick={adicionarGasto}
-          className="bg-green-500 hover:bg-green-600 px-4 py-2 rounded-lg font-bold"
-        >
-          Adicionar Gasto
-        </button>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="bg-zinc-800 p-6 rounded-2xl">
-          <h2 className="text-xl font-bold mb-4">Gastos do dia 15</h2>
-
-          <div className="space-y-3">
-            {gastosDia15.map((gasto) => (
-              <div key={gasto.id} className="bg-zinc-700 p-4 rounded-xl">
-                <div className="flex justify-between items-center mb-2">
-                  <div>
-                    <h3 className="font-bold">{gasto.descricao}</h3>
-                    <span>R$ {gasto.valor}</span>
-                  </div>
-
-                  <button
-                    onClick={() => excluirGasto(gasto.id)}
-                    className="bg-red-500 hover:bg-red-600 px-3 py-1 rounded-lg text-sm font-bold"
-                  >
-                    Excluir
-                  </button>
-                </div>
-
-                <div className="flex gap-2">
-                  <span className="bg-blue-500 px-2 py-1 rounded text-sm">
-                    {gasto.categoria}
-                  </span>
-
-                  <span
-                    className={
-                      gasto.tipo === "fixa"
-                        ? "bg-red-500 px-2 py-1 rounded text-sm"
-                        : "bg-yellow-500 px-2 py-1 rounded text-sm"
-                    }
-                  >
-                    {gasto.tipo}
-                  </span>
-                </div>
+        <div className="mb-8 grid gap-4 md:grid-cols-2">
+          <div className="rounded-3xl border border-zinc-800 bg-zinc-900/80 p-6 shadow-2xl shadow-black/20">
+            <div className="mb-5 flex items-center justify-between">
+              <div>
+                <p className="text-sm text-zinc-400">Período</p>
+                <h2 className="text-2xl font-semibold">Dia 15</h2>
               </div>
-            ))}
+
+              <div className="rounded-2xl bg-emerald-500/10 px-3 py-2 text-2xl">
+                💰
+              </div>
+            </div>
+
+            <div className="space-y-2 text-sm text-zinc-300">
+              <div className="flex justify-between">
+                <span>Recebido</span>
+                <span className="font-medium text-zinc-100">R$ {salarioDia15}</span>
+              </div>
+
+              <div className="flex justify-between">
+                <span>Total de gastos</span>
+                <span className="font-medium text-zinc-100">R$ {totalGastos15}</span>
+              </div>
+            </div>
+
+            <div className="my-5 h-px bg-zinc-800" />
+
+            <div className="flex items-end justify-between">
+              <span className="text-sm text-zinc-400">Saldo disponível</span>
+              <span className="text-2xl font-bold text-emerald-400">
+                R$ {saldo15}
+              </span>
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-zinc-800 bg-zinc-900/80 p-6 shadow-2xl shadow-black/20">
+            <div className="mb-5 flex items-center justify-between">
+              <div>
+                <p className="text-sm text-zinc-400">Período</p>
+                <h2 className="text-2xl font-semibold">Dia 30</h2>
+              </div>
+
+              <div className="rounded-2xl bg-sky-500/10 px-3 py-2 text-2xl">
+                💰
+              </div>
+            </div>
+
+            <div className="space-y-2 text-sm text-zinc-300">
+              <div className="flex justify-between">
+                <span>Recebido</span>
+                <span className="font-medium text-zinc-100">R$ {salarioDia30}</span>
+              </div>
+
+              <div className="flex justify-between">
+                <span>Total de gastos</span>
+                <span className="font-medium text-zinc-100">R$ {totalGastos30}</span>
+              </div>
+            </div>
+
+            <div className="my-5 h-px bg-zinc-800" />
+
+            <div className="flex items-end justify-between">
+              <span className="text-sm text-zinc-400">Saldo disponível</span>
+              <span className="text-2xl font-bold text-emerald-400">
+                R$ {saldo30}
+              </span>
+            </div>
+
+          </div>
+        </div>
+        <div className="mb-8 max-w-3xl rounded-3xl border border-zinc-800 bg-zinc-900/80 p-6 shadow-2xl shadow-black/20">
+          <div className="mb-6">
+            <p className="mb-2 text-sm font-medium text-emerald-400">
+              {gastoEditandoId ? "Modo edição" : "Novo registro"}
+            </p>
+
+            <h2 className="text-3xl font-bold tracking-tight">
+              {gastoEditandoId ? "Editar gasto" : "Adicionar gasto"}
+            </h2>
+
+            <p className="mt-2 text-sm text-zinc-400">
+              Preencha os dados do gasto para acompanhar seu controle financeiro.
+            </p>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-zinc-300">
+                Descrição
+              </label>
+
+              <input
+                type="text"
+                placeholder="Ex: Internet, Mercado..."
+                value={descricao}
+                onChange={(e) => setDescricao(e.target.value)}
+                className="w-full rounded-2xl border border-zinc-700 bg-zinc-950/80 px-4 py-3 text-white outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-zinc-300">
+                Valor
+              </label>
+
+              <input
+                type="number"
+                placeholder="0.00"
+                value={valor}
+                onChange={(e) => setValor(e.target.value)}
+                className="w-full rounded-2xl border border-zinc-700 bg-zinc-950/80 px-4 py-3 text-white outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-zinc-300">
+                Categoria
+              </label>
+
+              <input
+                type="text"
+                placeholder="Ex: Alimentação"
+                value={categoria}
+                onChange={(e) => setCategoria(e.target.value)}
+                className="w-full rounded-2xl border border-zinc-700 bg-zinc-950/80 px-4 py-3 text-white outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-zinc-300">
+                Tipo
+              </label>
+
+              <select
+                value={tipo}
+                onChange={(e) => setTipo(e.target.value)}
+                className="w-full rounded-2xl border border-zinc-700 bg-zinc-950/80 px-4 py-3 text-white outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+              >
+                <option value="fixa">Fixa</option>
+                <option value="variavel">Variável/Pontual</option>
+              </select>
+            </div>
+
+            <select
+              value={periodo}
+              onChange={(e) => setPeriodo(e.target.value)}
+              className="bg-zinc-700 p-2 rounded-lg text-white md:col-span-2"
+            >
+              <option value="15">Descontar do dia 15</option>
+              <option value="30">Descontar do dia 30</option>
+            </select>
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={gastoEditandoId ? salvarAlteracao : adicionarGasto}
+              className="bg-green-500 hover:bg-green-600 px-4 py-2 rounded-lg font-bold"
+              disabled={salvandoGasto}
+            >
+              {salvandoGasto
+                ? gastoEditandoId
+                  ? "Salvando..."
+                  : "Adicionando..."
+                : gastoEditandoId
+                  ? "Salvar alteração"
+                  : "Adicionar gasto"}
+
+            </button>
+
+            {gastoEditandoId && (
+              <button
+                onClick={cancelarEdicao}
+                className="bg-zinc-600 hover:bg-zinc-500 px-4 py-2 rounded-lg font-bold"
+              >
+                Cancelar
+              </button>
+            )}
           </div>
         </div>
 
-        <div className="bg-zinc-800 p-6 rounded-2xl">
-          <h2 className="text-xl font-bold mb-4">Gastos do dia 30</h2>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="rounded-3xl border border-zinc-800 bg-zinc-900/80 p-6 shadow-2xl shadow-black/20">
+            <h2 className="mb-4 text-xl font-bold">Gastos do dia 15</h2>
 
-          <div className="space-y-3">
-            {gastosDia30.map((gasto) => (
-              <div key={gasto.id} className="bg-zinc-700 p-4 rounded-xl">
-                <div className="flex justify-between items-center mb-2">
-                  <div>
-                    <h3 className="font-bold">{gasto.descricao}</h3>
-                    <span>R$ {gasto.valor}</span>
+            {carregandoGastos && (
+              <p className="mb-4 text-sm text-zinc-400">
+                Carregando gastos...
+              </p>
+            )}
+
+            <div className="space-y-3">
+              {!carregandoGastos && gastosDia15.length === 0 && (
+                <p className="text-sm text-zinc-500">
+                  Nenhum gasto cadastrado para o dia 15.
+                </p>
+              )}
+
+              {gastosDia15.map((gasto) => (
+                <div
+                  key={gasto.id}
+                  className="rounded-2xl border border-zinc-700/70 bg-zinc-950/60 p-4 transition hover:border-zinc-600 hover:bg-zinc-900"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h3 className="font-semibold text-zinc-100">
+                        {gasto.descricao}
+                      </h3>
+
+                      <p className="mt-1 text-sm text-zinc-300">
+                        R$ {gasto.valor}
+                      </p>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => editarGasto(gasto)}
+                        className="rounded-lg bg-blue-500 px-3 py-1.5 text-sm font-bold text-white transition hover:bg-blue-600"
+                      >
+                        Editar
+                      </button>
+
+                      <button
+                        onClick={() => excluirGasto(gasto.id)}
+                        className="rounded-lg bg-red-500 px-3 py-1.5 text-sm font-bold text-white transition hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={excluindoId === gasto.id}
+                      >
+                        {excluindoId === gasto.id ? "Excluindo..." : "Excluir"}
+                      </button>
+                    </div>
                   </div>
 
-                  <button
-                    onClick={() => excluirGasto(gasto.id)}
-                    className="bg-red-500 hover:bg-red-600 px-3 py-1 rounded-lg text-sm font-bold"
-                  >
-                    Excluir
-                  </button>
-                </div>
+                  <div className="mt-3 flex gap-2">
+                    <span className="rounded-full bg-blue-500/15 px-3 py-1 text-xs font-medium text-blue-300">
+                      {gasto.categoria}
+                    </span>
 
-                <div className="flex gap-2">
-                  <span className="bg-blue-500 px-2 py-1 rounded text-sm">
-                    {gasto.categoria}
-                  </span>
-
-                  <span
-                    className={
-                      gasto.tipo === "fixa"
-                        ? "bg-red-500 px-2 py-1 rounded text-sm"
-                        : "bg-yellow-500 px-2 py-1 rounded text-sm"
-                    }
-                  >
-                    {gasto.tipo}
-                  </span>
+                    <span
+                      className={
+                        gasto.tipo === "fixa"
+                          ? "rounded-full bg-red-500/15 px-3 py-1 text-xs font-medium text-red-300"
+                          : "rounded-full bg-yellow-500/15 px-3 py-1 text-xs font-medium text-yellow-300"
+                      }
+                    >
+                      {gasto.tipo}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-zinc-800 bg-zinc-900/80 p-6 shadow-2xl shadow-black/20">
+            <h2 className="mb-4 text-xl font-bold">Gastos do dia 30</h2>
+
+            {carregandoGastos && (
+              <p className="mb-4 text-sm text-zinc-400">
+                Carregando gastos...
+              </p>
+            )}
+
+            <div className="space-y-3">
+              {!carregandoGastos && gastosDia30.length === 0 && (
+                <p className="text-sm text-zinc-500">
+                  Nenhum gasto cadastrado para o dia 30.
+                </p>
+              )}
+
+              {gastosDia30.map((gasto) => (
+                <div
+                  key={gasto.id}
+                  className="rounded-2xl border border-zinc-700/70 bg-zinc-950/60 p-4 transition hover:border-zinc-600 hover:bg-zinc-900"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h3 className="font-semibold text-zinc-100">
+                        {gasto.descricao}
+                      </h3>
+
+                      <p className="mt-1 text-sm text-zinc-300">
+                        R$ {gasto.valor}
+                      </p>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => editarGasto(gasto)}
+                        className="rounded-lg bg-blue-500 px-3 py-1.5 text-sm font-bold text-white transition hover:bg-blue-600"
+                      >
+                        Editar
+                      </button>
+
+                      <button
+                        onClick={() => excluirGasto(gasto.id)}
+                        className="rounded-lg bg-red-500 px-3 py-1.5 text-sm font-bold text-white transition hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={excluindoId === gasto.id}
+                      >
+                        {excluindoId === gasto.id ? "Excluindo..." : "Excluir"}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex gap-2">
+                    <span className="rounded-full bg-blue-500/15 px-3 py-1 text-xs font-medium text-blue-300">
+                      {gasto.categoria}
+                    </span>
+
+                    <span
+                      className={
+                        gasto.tipo === "fixa"
+                          ? "rounded-full bg-red-500/15 px-3 py-1 text-xs font-medium text-red-300"
+                          : "rounded-full bg-yellow-500/15 px-3 py-1 text-xs font-medium text-yellow-300"
+                      }
+                    >
+                      {gasto.tipo}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
