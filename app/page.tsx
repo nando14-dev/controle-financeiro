@@ -4,6 +4,13 @@ import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 
+import {
+  LogOut,
+  Pencil,
+  Trash2,
+  Wallet,
+} from "lucide-react";
+
 export default function Home() {
   const salarioDia15 = 3000;
   const salarioDia30 = 2800;
@@ -247,6 +254,13 @@ export default function Home() {
   const saldo15 = salarioDia15 - totalGastos15;
   const saldo30 = salarioDia30 - totalGastos30;
 
+  const formatarMoeda = (valor: number) => {
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(valor);
+  };
+
   if (!session) {
     return (
       <main className="min-h-screen bg-zinc-900 text-white flex items-center justify-center p-6">
@@ -311,7 +325,10 @@ export default function Home() {
             onClick={logout}
             className="w-fit rounded-xl border border-zinc-700 bg-zinc-900/80 px-5 py-2.5 text-sm font-semibold text-zinc-200 shadow-lg shadow-black/20 transition hover:border-zinc-500 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Sair
+            <div className="flex items-center gap-2">
+              <LogOut size={16} />
+              <span>Sair</span>
+            </div>
           </button>
         </header>
 
@@ -331,12 +348,12 @@ export default function Home() {
             <div className="space-y-2 text-sm text-zinc-300">
               <div className="flex justify-between">
                 <span>Recebido</span>
-                <span className="font-medium text-zinc-100">R$ {salarioDia15}</span>
+                <span className="font-medium text-zinc-100">{formatarMoeda(salarioDia15)}</span>
               </div>
 
               <div className="flex justify-between">
                 <span>Total de gastos</span>
-                <span className="font-medium text-zinc-100">R$ {totalGastos15}</span>
+                <span className="font-medium text-zinc-100">{formatarMoeda(totalGastos15)}</span>
               </div>
             </div>
 
@@ -345,7 +362,7 @@ export default function Home() {
             <div className="flex items-end justify-between">
               <span className="text-sm text-zinc-400">Saldo disponível</span>
               <span className="text-2xl font-bold text-emerald-400">
-                R$ {saldo15}
+                {formatarMoeda(saldo15)}
               </span>
             </div>
           </div>
@@ -365,12 +382,12 @@ export default function Home() {
             <div className="space-y-2 text-sm text-zinc-300">
               <div className="flex justify-between">
                 <span>Recebido</span>
-                <span className="font-medium text-zinc-100">R$ {salarioDia30}</span>
+                <span className="font-medium text-zinc-100">{formatarMoeda(salarioDia30)}</span>
               </div>
 
               <div className="flex justify-between">
                 <span>Total de gastos</span>
-                <span className="font-medium text-zinc-100">R$ {totalGastos30}</span>
+                <span className="font-medium text-zinc-100">{formatarMoeda(totalGastos30)}</span>
               </div>
             </div>
 
@@ -379,7 +396,7 @@ export default function Home() {
             <div className="flex items-end justify-between">
               <span className="text-sm text-zinc-400">Saldo disponível</span>
               <span className="text-2xl font-bold text-emerald-400">
-                R$ {saldo30}
+                {formatarMoeda(saldo30)}
               </span>
             </div>
 
@@ -524,26 +541,38 @@ export default function Home() {
                       </h3>
 
                       <p className="mt-1 text-sm text-zinc-300">
-                        R$ {gasto.valor}
+                        {formatarMoeda(gasto.valor)}
                       </p>
                     </div>
 
                     <div className="flex gap-2">
                       <button
                         onClick={() => editarGasto(gasto)}
-                        className="rounded-lg bg-blue-500 px-3 py-1.5 text-sm font-bold text-white transition hover:bg-blue-600"
+                        className="inline-flex items-center gap-1 rounded-lg bg-blue-500 px-3 py-1.5 text-sm font-bold text-white transition hover:bg-blue-600"
                       >
-                        Editar
+                        <Pencil
+                          size={16}
+                          strokeWidth={2.5}
+                          className="text-white"
+                        />
+                        <span>Editar</span>
                       </button>
 
                       <button
                         onClick={() => excluirGasto(gasto.id)}
-                        className="rounded-lg bg-red-500 px-3 py-1.5 text-sm font-bold text-white transition hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="inline-flex items-center gap-1 rounded-lg bg-red-500 px-3 py-1.5 text-sm font-bold text-white transition hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
                         disabled={excluindoId === gasto.id}
                       >
-                        {excluindoId === gasto.id ? "Excluindo..." : "Excluir"}
-                      </button>
-                    </div>
+                        <Trash2
+                          size={16}
+                          strokeWidth={2.5}
+                          className="text-white"
+                        />
+
+                        <span>
+                          {excluindoId === gasto.id ? "Excluindo..." : "Excluir"}
+                        </span>
+                      </button>                    </div>
                   </div>
 
                   <div className="mt-3 flex gap-2">
@@ -594,26 +623,39 @@ export default function Home() {
                       </h3>
 
                       <p className="mt-1 text-sm text-zinc-300">
-                        R$ {gasto.valor}
+                        {formatarMoeda(gasto.valor)}
                       </p>
                     </div>
 
                     <div className="flex gap-2">
                       <button
                         onClick={() => editarGasto(gasto)}
-                        className="rounded-lg bg-blue-500 px-3 py-1.5 text-sm font-bold text-white transition hover:bg-blue-600"
+                        className="inline-flex items-center gap-1 rounded-lg bg-blue-500 px-3 py-1.5 text-sm font-bold text-white transition hover:bg-blue-600"
                       >
-                        Editar
+                        <Pencil
+                          size={16}
+                          strokeWidth={2.5}
+                          className="text-white"
+                        />
+                        <span>Editar</span>
                       </button>
-
                       <button
                         onClick={() => excluirGasto(gasto.id)}
-                        className="rounded-lg bg-red-500 px-3 py-1.5 text-sm font-bold text-white transition hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="inline-flex items-center gap-1 rounded-lg bg-red-500 px-3 py-1.5 text-sm font-bold text-white transition hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60"
                         disabled={excluindoId === gasto.id}
                       >
-                        {excluindoId === gasto.id ? "Excluindo..." : "Excluir"}
-                      </button>
-                    </div>
+                        <Trash2
+                          size={16}
+                          strokeWidth={2.5}
+                          className="text-white"
+                        />
+
+                        <span>
+                          {excluindoId === gasto.id
+                            ? "Excluindo..."
+                            : "Excluir"}
+                        </span>
+                      </button>                    </div>
                   </div>
 
                   <div className="mt-3 flex gap-2">
